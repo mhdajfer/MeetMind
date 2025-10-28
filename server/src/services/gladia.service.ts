@@ -1,10 +1,7 @@
-import axios from "axios";
 import WebSocket from "ws";
 import { EventEmitter } from "events";
 import { DEEPGRAM_API_KEY } from "../config";
 import { logger } from "../utils/logger";
-import { GladiaInitResponse } from "../types";
-import { PassThrough } from "stream";
 
 export interface DeepGramSession {
   id: string;
