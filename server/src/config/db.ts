@@ -26,12 +26,20 @@ export const testDatabaseConnection = async (): Promise<boolean> => {
 };
 
 export async function initDB() {
-  const schemaDir = path.join(__dirname, "../schemas");
-  const files = fs.readdirSync(schemaDir);
+  const schemaFiles = [
+    "user.schema.sql",
+    "meetings.schema.sql",
+    "transcript_chunks.schema.sql",
+    "ai_analysis.schema.sql",
+  ];
 
-  for (const file of files) {
-    const sql = fs.readFileSync(path.join(schemaDir, file), "utf-8");
-    console.log(`Applying schema: ${file}`);
+  const schemaDir = path.join(__dirname, "../schemas");
+
+  for (const file of schemaFiles) {
+    const filePath = path.join(schemaDir, file);
+    const sql = fs.readFileSync(filePath, "utf8");
+
+    console.log(`📄 Applying schema: ${file}`);
     await pool.query(sql);
   }
 
