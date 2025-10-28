@@ -8,6 +8,7 @@ import { errorHandler } from "./middlewares/error.middleware";
 import { logger } from "./utils/logger";
 import { PORT, NODE_ENV } from "./config";
 import { rateLimiterMiddleware } from "./middlewares/rateLimiter";
+import pool, { testDatabaseConnection } from "./config/db";
 
 const app = express();
 
@@ -37,21 +38,37 @@ const server = http.createServer(app);
 // socket.io server
 const io = initSocketServer(server);
 
-server.listen(PORT, () => {
+server.listen(PORT, async () => {
   logger.info(
     { pid: process.pid, port: PORT, env: NODE_ENV },
     "Server started"
   );
+
+  // Initialize database connection
+  await testDatabaseConnection();
 });
 
 // Graceful shutdown
 const shutdown = async () => {
   logger.info("Received shutdown signal, closing server...");
-  io.close();
-  server.close(() => {
-    logger.info("HTTP server closed. Exiting process.");
-    process.exit(0);
-  });
+
+  try {
+    // Close socket.io server
+    io.close();
+
+    // Close database connection pool
+    await pool.end();
+    logger.info("Database pool closed");
+
+    // Close HTTP server
+    server.close(() => {
+      logger.info("HTTP server closed. Exiting process.");
+      process.exit(0);
+    });
+  } catch (err) {
+    logger.error({ err }, "Error during shutdown");
+    process.exit(1);
+  }
 
   // Force exit after 10s
   setTimeout(() => {
