@@ -1,23 +1,26 @@
 {
-  "name": "server",
+  "name": "meetmind-server",
   "version": "1.0.0",
   "main": "dist/server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc",
     "dev": "nodemon src/server.ts",
     "start": "node dist/server.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
+  "description": "MeetMind Server — Real-time meeting transcription & AI analysis",
   "dependencies": {
-    "axios": "^1.12.2",
+    "bcrypt": "^6.0.0",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
-    "express-async-handler": "^1.2.0",
+    "google-auth-library": "^10.5.0",
     "helmet": "^8.1.0",
+    "joi": "^18.0.2",
+    "jsonwebtoken": "^9.0.3",
     "pg": "^8.16.3",
     "pino": "^10.0.0",
     "rate-limiter-flexible": "^8.1.0",
@@ -25,7 +28,10 @@
     "ws": "^8.18.3"
   },
   "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
+    "@types/cookie-parser": "^1.4.7",
     "@types/express": "^5.0.3",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^24.7.2",
     "@types/pg": "^8.15.5",
     "@types/ws": "^8.18.1",
