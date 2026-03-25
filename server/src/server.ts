@@ -2,40 +2,49 @@ import express from "express";
 import http from "http";
 import helmet from "helmet";
 import cors from "cors";
-import { initSocketServer } from "./sockets/socket.server";
-import healthRoutes from "./routes/health.routes";
-import { errorHandler } from "./middlewares/error.middleware";
-import { logger } from "./utils/logger";
-import { PORT, NODE_ENV } from "./config";
-import { rateLimiterMiddleware } from "./middlewares/rateLimiter";
-import pool, { testDatabaseConnection } from "./config/db";
+import cookieParser from "cookie-parser";
+import { initSocketServer } from "./presentation/sockets/SocketServer";
+import healthRoutes from "./presentation/routes/health.routes";
+import authRoutes from "./presentation/routes/auth.routes";
+import { errorHandler } from "./presentation/middlewares/errorHandler";
+import { rateLimiterMiddleware } from "./presentation/middlewares/rateLimiter";
+import { logger } from "./shared/utils/logger";
+import {
+  PORT,
+  NODE_ENV,
+  FRONTEND_ORIGIN,
+} from "./shared/config/environment";
+import pool, {
+  testDatabaseConnection,
+  runMigrations,
+} from "./infrastructure/config/database";
 
 const app = express();
 
-// basic middlewares
+// ── Core middlewares ────────────────────────────────────────────────
 app.use(helmet());
-app.use(cors());
+app.use(
+  cors({
+    origin: FRONTEND_ORIGIN,
+    credentials: true,
+  })
+);
+app.use(cookieParser());
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true }));
 
-// small example rate limit for HTTP endpoints using rate-limiter-flexible
-app.use(async (req, res, next) => {
-  try {
-    await rateLimiterMiddleware(req, res, next);
-    next();
-  } catch (err) {
-    res.status(429).json({ error: "Too many requests" });
-  }
-});
+// ── Rate limiting ──────────────────────────────────────────────────
+app.use(rateLimiterMiddleware);
 
+// ── Routes ─────────────────────────────────────────────────────────
 app.use("/api", healthRoutes);
+app.use("/auth", authRoutes);
 
-// error handler
+// ── Error handler (must be last) ───────────────────────────────────
 app.use(errorHandler);
 
+// ── Server startup ─────────────────────────────────────────────────
 const server = http.createServer(app);
-
-// socket.io server
 const io = initSocketServer(server);
 
 server.listen(PORT, async () => {
@@ -44,23 +53,19 @@ server.listen(PORT, async () => {
     "Server started"
   );
 
-  // Initialize database connection
   await testDatabaseConnection();
+  await runMigrations();
 });
 
-// Graceful shutdown
+// ── Graceful shutdown ──────────────────────────────────────────────
 const shutdown = async () => {
   logger.info("Received shutdown signal, closing server...");
 
   try {
-    // Close socket.io server
     io.close();
-
-    // Close database connection pool
     await pool.end();
     logger.info("Database pool closed");
 
-    // Close HTTP server
     server.close(() => {
       logger.info("HTTP server closed. Exiting process.");
       process.exit(0);
@@ -70,15 +75,13 @@ const shutdown = async () => {
     process.exit(1);
   }
 
-  // Force exit after 10s
   setTimeout(() => {
-    logger.error({
-      message: "Could not close connections in time, forcefully shutting down",
-    });
+    logger.error(
+      "Could not close connections in time, forcefully shutting down"
+    );
     process.exit(1);
   }, 10_000);
 };
 
-// handle signals
 process.on("SIGTERM", shutdown);
 process.on("SIGINT", shutdown);
